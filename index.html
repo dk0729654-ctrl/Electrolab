@@ -1,0 +1,531 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ElectroLab Pro</title>
+
+<style>
+:root{
+ --bg:#080f20;--panel:#111e33;--panel2:#192942;
+ --text:#f1f5f9;--muted:#9db0c9;
+ --cyan:#38bdf8;--green:#34d399;
+}
+*{box-sizing:border-box}
+body{
+ margin:0;background:var(--bg);color:var(--text);
+ font-family:Arial,sans-serif;padding:15px;
+}
+header{padding:12px 2px 20px}
+.logo{font-size:27px;font-weight:900;color:var(--cyan)}
+.subtitle{color:var(--muted);font-size:13px}
+.card{
+ background:var(--panel);padding:17px;
+ border:1px solid #263c59;border-radius:17px;
+ margin-bottom:15px;
+}
+h2{font-size:17px;color:#7dd3fc;margin-top:0}
+h3{font-size:14px;color:#cbd5e1}
+.grid{
+ display:grid;grid-template-columns:1fr 1fr;gap:9px;
+}
+.stat{
+ background:var(--panel2);padding:13px;border-radius:12px;
+}
+.stat small{color:var(--muted)}
+.stat strong{display:block;color:var(--green);font-size:19px;margin-top:8px}
+button,select{
+ border:1px solid #38506c;border-radius:10px;
+ padding:11px;background:#203651;color:white;
+ font-weight:bold;cursor:pointer;
+}
+button:active{transform:scale(.97)}
+button.primary{background:#087eb9;border:0}
+button.active{background:#087eb9}
+button.danger{background:#7f2939}
+.row{display:flex;flex-wrap:wrap;gap:7px}
+.row button{flex:1}
+label{display:block;margin:16px 0 7px;font-size:14px}
+input[type=range]{width:100%;accent-color:#38bdf8}
+input[type=checkbox]{accent-color:#38bdf8}
+select{width:100%}
+.value{color:#6ee7b7;font-weight:bold}
+.lab{
+ position:relative;background:#07101f;border-radius:14px;
+ overflow:hidden;border:1px solid #29415e;
+}
+canvas{display:block;width:100%;height:350px;touch-action:none}
+.hint{font-size:12px;color:var(--muted);line-height:1.6}
+.result{font-size:23px;color:var(--green);font-weight:bold}
+.formula{
+ background:#07101f;padding:13px;border-radius:10px;
+ color:#bae6fd;font-size:17px;text-align:center;
+ margin:9px 0;
+}
+.tag{color:#6ee7b7;font-size:12px}
+hr{border:0;border-top:1px solid #33465e;margin:15px 0}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:15px}
+</style>
+</head>
+
+<body>
+
+<header>
+ <div class="logo">⚡ ElectroLab Pro</div>
+ <div class="subtitle">2nd PUC Physics • Interactive Virtual Laboratory</div>
+</header>
+
+<div class="card">
+ <div class="row">
+  <button class="active" onclick="setMode('field',this)">Field Lines</button>
+  <button onclick="setMode('vectors',this)">Field Vectors</button>
+  <button onclick="setMode('both',this)">Both</button>
+ </div>
+ <p class="hint">Choose a visualization mode to explore electric fields.</p>
+</div>
+
+<div class="card">
+ <h2>🔬 Virtual Laboratory</h2>
+ <div class="lab">
+  <canvas id="lab"></canvas>
+ </div>
+ <p class="hint">
+ Drag any charge to move it. Yellow arrows show electric field direction.
+ Red = positive charge. Blue = negative charge.
+ </p>
+ <div class="row">
+  <button class="primary" onclick="addCharge(1)">+ Add Positive</button>
+  <button onclick="addCharge(-1)">− Add Negative</button>
+  <button class="danger" onclick="removeSelected()">Remove Selected</button>
+ </div>
+ <div class="row" style="margin-top:8px">
+  <button onclick="toggleAnimation()" id="animBtn">Pause Animation</button>
+  <button onclick="resetLab()">↻ Reset Lab</button>
+ </div>
+</div>
+
+<div class="card">
+ <h2>🎛️ Charge Configuration</h2>
+ <label>Select charge</label>
+ <select id="selected"></select>
+
+ <label>Charge magnitude:
+ <span class="value" id="chargeValue">2</span> μC</label>
+ <input id="magnitude" type="range" min="0" max="10" step=".5" value="2">
+
+ <label>Charge sign</label>
+ <div class="row">
+  <button id="positive" onclick="changeSign(1)">Positive (+)</button>
+  <button id="negative" onclick="changeSign(-1)">Negative (−)</button>
+ </div>
+
+ <label>Display scale:
+ <span class="value" id="scaleValue">100%</span></label>
+ <input id="scale" type="range" min="50" max="200" value="100">
+</div>
+
+<div class="card">
+ <h2>📊 Live Physics Results</h2>
+ <p class="hint">Net force acting on the selected charge</p>
+ <div class="grid">
+  <div class="stat">
+   <small>Net Force</small>
+   <strong id="force">0 N</strong>
+  </div>
+  <div class="stat">
+   <small>Electric Field</small>
+   <strong id="electric">0 N/C</strong>
+  </div>
+  <div class="stat">
+   <small>Number of charges</small>
+   <strong id="count">2</strong>
+  </div>
+  <div class="stat">
+   <small>Force direction</small>
+   <strong id="direction">—</strong>
+  </div>
+ </div>
+ <p class="hint" id="explanation">Select and move charges to begin.</p>
+</div>
+
+<div class="card">
+ <h2>📚 Physics Formula</h2>
+ <div class="formula">F = k |q₁q₂| / r²</div>
+ <div class="formula">E = k |q| / r²</div>
+ <p class="hint">
+ k = 8.99 × 10⁹ Nm²/C²<br>
+ q = Charge in Coulomb (C)<br>
+ r = Distance in metres (m)<br>
+ μC = 10⁻⁶ C
+ </p>
+</div>
+
+<div class="card">
+ <h2>🧪 Experiment Challenges</h2>
+ <p class="hint">Try these experiments in your virtual laboratory.</p>
+ <button onclick="challenge(2,3)">01. Like Charges</button>
+ <button onclick="challenge(2,-3)">02. Unlike Charges</button>
+ <button onclick="challenge(5,-5)">03. Electric Dipole</button>
+ <button onclick="challenge(5,5)">04. Equal Positive Charges</button>
+</div>
+
+<div class="card">
+ <h2>🌐 Learn in Kannada</h2>
+ <p><b>Electric Charge (ವಿದ್ಯುತ್ ಆವೇಶ)</b></p>
+ <p class="hint">ವಸ್ತುವಿನಲ್ಲಿರುವ ವಿದ್ಯುತ್ ಗುಣಲಕ್ಷಣವನ್ನು Electric Charge ಎನ್ನುತ್ತಾರೆ.</p>
+ <p><b>Attraction (ಆಕರ್ಷಣೆ)</b></p>
+ <p class="hint">ವಿರುದ್ಧ ಆವೇಶಗಳು ಒಂದನ್ನೊಂದು ಆಕರ್ಷಿಸುತ್ತವೆ.</p>
+ <p><b>Repulsion (ವಿಕರ್ಷಣೆ)</b></p>
+ <p class="hint">ಸಮಾನ ಆವೇಶಗಳು ಒಂದನ್ನೊಂದು ವಿಕರ್ಷಿಸುತ್ತವೆ.</p>
+ <p><b>Electric Field (ವಿದ್ಯುತ್ ಕ್ಷೇತ್ರ)</b></p>
+ <p class="hint">ಒಂದು ವಿದ್ಯುತ್ ಆವೇಶದ ಸುತ್ತಲಿನ ಪ್ರದೇಶದಲ್ಲಿ ಮತ್ತೊಂದು ಆವೇಶವು ವಿದ್ಯುತ್ ಬಲವನ್ನು ಅನುಭವಿಸುತ್ತದೆ.</p>
+</div>
+
+<footer>ElectroLab Pro • Learn Physics by Experimenting</footer>
+
+<script>
+const $=id=>document.getElementById(id);
+const canvas=$("lab");
+const ctx=canvas.getContext("2d");
+
+let charges=[
+ {x:0.32,y:0.5,q:2},
+ {x:0.68,y:0.5,q:-3}
+];
+let selected=0;
+let mode="field";
+let paused=false;
+let animation=0;
+let dragging=-1;
+let W=0,H=350,DPR=1;
+
+function resize(){
+ const rect=canvas.getBoundingClientRect();
+ W=rect.width; H=350;
+ DPR=Math.min(window.devicePixelRatio||1,2);
+ canvas.width=W*DPR;
+ canvas.height=H*DPR;
+ ctx.setTransform(DPR,0,0,DPR,0,0);
+ draw();
+}
+window.addEventListener("resize",resize);
+
+function updateSelect(){
+ const el=$("selected");
+ el.innerHTML="";
+ charges.forEach((c,i)=>{
+  let o=document.createElement("option");
+  o.value=i;
+  o.textContent="Charge "+(i+1)+" ("+(c.q>=0?"+":"")+c.q+" μC)";
+  el.appendChild(o);
+ });
+ selected=Math.min(selected,charges.length-1);
+ el.value=selected;
+ updateControls();
+}
+
+function updateControls(){
+ if(!charges.length)return;
+ const c=charges[selected];
+ $("magnitude").value=Math.abs(c.q);
+ $("chargeValue").textContent=Math.abs(c.q);
+ $("positive").classList.toggle("active",c.q>0);
+ $("negative").classList.toggle("active",c.q<0);
+ $("count").textContent=charges.length;
+}
+
+$("selected").addEventListener("change",e=>{
+ selected=Number(e.target.value);
+ updateControls();updateResults();draw();
+});
+
+$("magnitude").addEventListener("input",e=>{
+ if(!charges.length)return;
+ let sign=charges[selected].q<0?-1:1;
+ charges[selected].q=sign*Number(e.target.value);
+ $("chargeValue").textContent=e.target.value;
+ updateSelect();updateResults();draw();
+});
+
+$("scale").addEventListener("input",e=>{
+ $("scaleValue").textContent=e.target.value+"%";
+ draw();
+});
+
+function changeSign(s){
+ if(!charges.length)return;
+ charges[selected].q=s*Math.abs(charges[selected].q||1);
+ updateSelect();updateResults();draw();
+}
+
+function addCharge(s){
+ if(charges.length>=6){
+ alert("Maximum 6 charges allowed.");
+ return;
+ }
+ charges.push({
+  x:0.25+Math.random()*.5,
+  y:0.25+Math.random()*.5,
+  q:s*2
+ });
+ selected=charges.length-1;
+ updateSelect();updateResults();draw();
+}
+
+function removeSelected(){
+ if(charges.length<=1){
+  alert("Keep at least one charge.");
+  return;
+ }
+ charges.splice(selected,1);
+ selected=0;
+ updateSelect();updateResults();draw();
+}
+
+function resetLab(){
+ charges=[
+  {x:.32,y:.5,q:2},
+  {x:.68,y:.5,q:-3}
+ ];
+ selected=0;
+ mode="field";
+ document.querySelectorAll(".row button").forEach(b=>{
+  if(["Field Lines","Field Vectors","Both"].includes(b.textContent))
+   b.classList.toggle("active",b.textContent==="Field Lines");
+ });
+ $("scale").value=100;
+ $("scaleValue").textContent="100%";
+ updateSelect();updateResults();draw();
+}
+
+function challenge(a,b){
+ charges=[
+  {x:.32,y:.5,q:a},
+  {x:.68,y:.5,q:b}
+ ];
+ selected=0;
+ updateSelect();updateResults();draw();
+}
+
+function setMode(m,btn){
+ mode=m;
+ document.querySelectorAll(".row button").forEach(b=>{
+  if(["Field Lines","Field Vectors","Both"].includes(b.textContent))
+   b.classList.remove("active");
+ });
+ btn.classList.add("active");
+ draw();
+}
+
+function fieldAt(x,y){
+ let ex=0,ey=0;
+ charges.forEach(c=>{
+  let cx=c.x*W,cy=c.y*H;
+  let dx=x-cx,dy=y-cy;
+  let r2=dx*dx+dy*dy;
+  if(r2<100)return;
+  let f=c.q/Math.pow(r2,1.5);
+  ex+=f*dx;ey+=f*dy;
+ });
+ return {ex,ey};
+}
+
+function drawArrow(x,y,dx,dy,color){
+ let m=Math.hypot(dx,dy);
+ if(m<.000001)return;
+ dx/=m;dy/=m;
+ ctx.strokeStyle=color;
+ ctx.fillStyle=color;
+ ctx.lineWidth=1.5;
+ ctx.beginPath();
+ ctx.moveTo(x-dx*5,y-dy*5);
+ ctx.lineTo(x+dx*5,y+dy*5);
+ ctx.stroke();
+ ctx.beginPath();
+ ctx.moveTo(x+dx*5,y+dy*5);
+ ctx.lineTo(x+dx*1-dy*4,y+dy*1+dx*4);
+ ctx.lineTo(x+dx*1+dy*4,y+dy*1-dx*4);
+ ctx.closePath();ctx.fill();
+}
+
+function drawFieldLines(){
+ const step=4;
+ const maxSteps=650;
+ ctx.save();
+ ctx.lineWidth=1.25;
+ charges.forEach(c=>{
+  if(c.q<=0)return;
+  let cx=c.x*W,cy=c.y*H;
+  let rays=Math.max(8,Math.round(c.q*3));
+  for(let n=0;n<rays;n++){
+   let angle=2*Math.PI*n/rays;
+   let x=cx+27*Math.cos(angle);
+   let y=cy+27*Math.sin(angle);
+   ctx.beginPath();
+   ctx.moveTo(x,y);
+   let ended=false;
+   for(let i=0;i<maxSteps;i++){
+    let f=fieldAt(x,y);
+    let mag=Math.hypot(f.ex,f.ey);
+    if(mag<1e-9)break;
+    x+=step*f.ex/mag;
+    y+=step*f.ey/mag;
+    ctx.lineTo(x,y);
+
+    let nearNegative=false;
+    charges.forEach(other=>{
+     if(other.q<0){
+      let d=Math.hypot(x-other.x*W,y-other.y*H);
+      if(d<13)nearNegative=true;
+     }
+    });
+    if(nearNegative||x<0||x>W||y<0||y>H){
+     ended=true;break;
+    }
+   }
+   ctx.strokeStyle="rgba(96,190,255,.55)";
+   ctx.stroke();
+  }
+ });
+ ctx.restore();
+}
+
+function drawVectors(){
+ for(let x=18;x<W;x+=29){
+  for(let y=18;y<H;y+=29){
+   let f=fieldAt(x,y);
+   let mag=Math.hypot(f.ex,f.ey);
+   if(mag<1e-9)continue;
+   drawArrow(x,y,f.ex,f.ey,"rgba(250,204,21,.8)");
+  }
+ }
+}
+
+function draw(){
+ if(!W)return;
+ ctx.clearRect(0,0,W,H);
+
+ // Grid
+ ctx.strokeStyle="rgba(100,150,190,.09)";
+ ctx.lineWidth=1;
+ for(let x=0;x<W;x+=25){
+  ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();
+ }
+ for(let y=0;y<H;y+=25){
+  ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
+ }
+
+ if(mode==="field"||mode==="both")drawFieldLines();
+ if(mode==="vectors"||mode==="both")drawVectors();
+
+ // Charges
+ charges.forEach((c,i)=>{
+  let x=c.x*W,y=c.y*H;
+  let radius=21*Number($("scale").value)/100;
+  ctx.beginPath();
+  ctx.arc(x,y,radius+7,0,Math.PI*2);
+  ctx.fillStyle=i===selected?"rgba(56,189,248,.13)":"transparent";
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(x,y,radius,0,Math.PI*2);
+  ctx.fillStyle=c.q>0?"#e64d58":c.q<0?"#287fe0":"#64748b";
+  ctx.fill();
+  ctx.strokeStyle="white";
+  ctx.lineWidth=i===selected?3:1.5;
+  ctx.stroke();
+
+  ctx.fillStyle="white";
+  ctx.font="bold 18px Arial";
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+  ctx.fillText(c.q>0?"+":c.q<0?"−":"0",x,y);
+
+  ctx.font="11px Arial";
+  ctx.fillText(Math.abs(c.q)+" μC",x,y+radius+14);
+ });
+}
+
+function updateResults(){
+ if(!charges.length)return;
+ const target=charges[selected];
+ let Ex=0,Ey=0,Fx=0,Fy=0;
+ const k=8.99e9;
+ const tx=target.x*W,ty=target.y*H;
+
+ charges.forEach((c,i)=>{
+  if(i===selected)return;
+  let dx=(target.x-c.x)*W/100;
+  let dy=(target.y-c.y)*H/100;
+  let r2=dx*dx+dy*dy;
+  if(r2<.0001)return;
+  let r=Math.sqrt(r2);
+  let e=k*c.q*1e-6/r2;
+  Ex+=e*dx/r;
+  Ey+=e*dy/r;
+ });
+
+ let E=Math.hypot(Ex,Ey);
+ let force=Math.abs(target.q)*1e-6*E;
+ $("force").textContent=force.toExponential(3)+" N";
+ $("electric").textContent=E.toExponential(3)+" N/C";
+ $("direction").textContent=E<1e-10?"Zero":(Math.atan2(Ey,Ex)*180/Math.PI).toFixed(1)+"°";
+
+ $("explanation").textContent=target.q===0?
+ "Selected charge is zero, so force on it is zero.":
+ "Net electric field is calculated from all other charges. Force = qE.";
+}
+
+function toggleAnimation(){
+ paused=!paused;
+ $("animBtn").textContent=paused?"Resume Animation":"Pause Animation";
+}
+
+function animate(){
+ if(!paused){
+  animation+=.025;
+  draw();
+ }
+ requestAnimationFrame(animate);
+}
+
+// Drag and drop on canvas
+function pointerPosition(e){
+ const rect=canvas.getBoundingClientRect();
+ return {x:e.clientX-rect.left,y:e.clientY-rect.top};
+}
+
+canvas.addEventListener("pointerdown",e=>{
+ const p=pointerPosition(e);
+ let nearest=-1,dist=35;
+ charges.forEach((c,i)=>{
+  let d=Math.hypot(p.x-c.x*W,p.y-c.y*H);
+  if(d<dist){dist=d;nearest=i;}
+ });
+ if(nearest>=0){
+  dragging=nearest;selected=nearest;
+  canvas.setPointerCapture(e.pointerId);
+  updateSelect();updateResults();draw();
+ }
+});
+
+canvas.addEventListener("pointermove",e=>{
+ if(dragging<0)return;
+ const p=pointerPosition(e);
+ charges[dragging].x=Math.max(.04,Math.min(.96,p.x/W));
+ charges[dragging].y=Math.max(.08,Math.min(.92,p.y/H));
+ updateResults();draw();
+});
+
+function stopDrag(){dragging=-1;}
+canvas.addEventListener("pointerup",stopDrag);
+canvas.addEventListener("pointercancel",stopDrag);
+
+updateSelect();
+updateResults();
+resize();
+animate();
+</script>
+</body>
+</html>
